@@ -14,12 +14,21 @@ async function begin() {
       '--disable-web-security'
     ]
   })
-
+  let [serviceWorkerPage] = browserContext.serviceWorkers();
+  if (!serviceWorkerPage)
+    serviceWorkerPage = await browserContext.waitForEvent('serviceworker');
   const page = await browserContext.newPage()
   await page.goto(url.pathToFileURL(path.join(__dirname, 'test.html')).href)
 
-  await new Promise(r => setTimeout(r, 10_000));
+  await serviceWorkerPage.evaluate(async () => {
+    let [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: () => { chrome.dom.openOrClosedShadowRoot(document.querySelector('span')).querySelector('input').value = "bebo" }
+    });
+  })
 
+  await new Promise(r => setTimeout(r, 10_000));
 
   await browserContext.close();
 }
